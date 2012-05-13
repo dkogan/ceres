@@ -70,6 +70,9 @@ struct IterationSummary {
   // algorithm at the end of the current iteration.
   double mu;
 
+  // For the dogleg algorithm, the trust region size
+  double trustregion;
+
   // For the inexact step Levenberg-Marquardt algorithm, this is the
   // relative accuracy with which the Newton(LM) step is solved. This
   // number affects only the iterative solvers capable of solving

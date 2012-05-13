@@ -150,7 +150,8 @@ enum LoggingType {
 };
 
 enum MinimizerType {
-  LEVENBERG_MARQUARDT
+  LEVENBERG_MARQUARDT,
+  DOGLEG
 };
 
 enum SolverTerminationType {
@@ -174,6 +175,9 @@ enum SolverTerminationType {
   // Minimized terminated because
   //  |step|_2 <= parameter_tolerance * ( |x|_2 +  parameter_tolerance)
   PARAMETER_TOLERANCE,
+
+  // The trust region is too small to continue
+  TRUSTREGION_TOLERANCE,
 
   // The minimizer terminated because it encountered a numerical error
   // that it could not recover from.

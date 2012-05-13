@@ -35,6 +35,7 @@
 #include "ceres/evaluator.h"
 #include "ceres/gradient_checking_cost_function.h"
 #include "ceres/levenberg_marquardt.h"
+#include "ceres/dogleg.h"
 #include "ceres/linear_solver.h"
 #include "ceres/map_util.h"
 #include "ceres/minimizer.h"
@@ -139,15 +140,29 @@ void SolverImpl::Minimize(const Solver::Options& options,
     minimizer_options.callbacks.push_back(&updating_callback);
   }
 
-  LevenbergMarquardt levenberg_marquardt;
 
   time_t start_minimizer_time_seconds = time(NULL);
-  levenberg_marquardt.Minimize(minimizer_options,
-                               evaluator,
-                               linear_solver,
-                               initial_parameters,
-                               final_parameters,
-                               summary);
+  Minimizer* minimizer;
+  switch( options.minimizer_type )
+  {
+  case LEVENBERG_MARQUARDT:
+    minimizer = new LevenbergMarquardt;
+    break;
+  case DOGLEG:
+    minimizer = new Dogleg;
+    break;
+  default:
+    VLOG(1) << "Unknown minimizer_type " << options.minimizer_type;
+    return;
+  }
+  minimizer->Minimize(minimizer_options,
+                      evaluator,
+                      linear_solver,
+                      initial_parameters,
+                      final_parameters,
+                      summary);
+  delete minimizer;
+
   summary->minimizer_time_in_seconds =
       time(NULL) - start_minimizer_time_seconds;
 }

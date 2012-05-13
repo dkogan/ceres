@@ -54,6 +54,7 @@ class Minimizer {
       gradient_tolerance = options.gradient_tolerance;
       parameter_tolerance = options.parameter_tolerance;
       function_tolerance = options.function_tolerance;
+      trustregion_tolerance = options.trustregion_tolerance;
       min_relative_decrease = options.min_relative_decrease;
       eta = options.eta;
       tau = options.tau;
@@ -73,6 +74,7 @@ class Minimizer {
     double parameter_tolerance;
     double function_tolerance;
     double min_relative_decrease;
+    double trustregion_tolerance;
     double eta;
     double tau;
     double min_mu;

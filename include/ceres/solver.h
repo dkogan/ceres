@@ -67,6 +67,7 @@ class Solver {
       function_tolerance = 1e-6;
       gradient_tolerance = 1e-10;
       parameter_tolerance = 1e-8;
+      trustregion_tolerance = 1e-8;
 #ifndef CERES_NO_SUITESPARSE
       linear_solver_type = SPARSE_NORMAL_CHOLESKY;
 #else
@@ -146,6 +147,9 @@ class Solver {
     //   |step|_2 <= parameter_tolerance * ( |x|_2 +  parameter_tolerance)
     //
     double parameter_tolerance;
+
+    // Minimum trustregion size to continue running a dogleg solver
+    double trustregion_tolerance;
 
     // Linear least squares solver options -------------------------------------
 

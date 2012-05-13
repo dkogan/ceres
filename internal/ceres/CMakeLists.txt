@@ -54,6 +54,7 @@ SET(CERES_INTERNAL_SRC
     implicit_schur_complement.cc
     iterative_schur_complement_solver.cc
     levenberg_marquardt.cc
+    dogleg.cc
     linear_least_squares_problems.cc
     linear_operator.cc
     linear_solver.cc
