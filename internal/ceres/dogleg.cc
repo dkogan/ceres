@@ -321,7 +321,7 @@ void computeCauchyUpdate(OperatingPoint& point, Context& ctx)
   double norm2_J_Jt_f = ctx.J_Jt_f.squaredNorm();
   double k            = -norm2_Jt_f / norm2_J_Jt_f;
 
-  ctx.cauchy_step = point.Jt_f * k;
+  ctx.cauchy_step = point.Jt_f.array() * k;
   ctx.cauchy_step_norm2 = k*k * norm2_Jt_f;
 
   ctx.cauchy_step_norm = sqrt(ctx.cauchy_step_norm2);
@@ -436,8 +436,7 @@ bool computeGaussNewtonUpdate(OperatingPoint& point,
   return true;
 }
 
-void computeInterpolatedUpdate(Vector& update,
-                               OperatingPoint& point, Context& ctx)
+void computeInterpolatedUpdate(Vector& update, Context& ctx)
 {
   // I interpolate between the Cauchy-point step and the Gauss-Newton step
   // to find a step that takes me to the edge of my trust region.
@@ -457,7 +456,7 @@ void computeInterpolatedUpdate(Vector& update,
   double dsq          = ctx.trustregion*ctx.trustregion;
   double norm2a       = ctx.cauchy_step_norm2;
 
-  ctx.newton_minus_cauchy = ctx.newton_step - ctx.cauchy_step;
+  ctx.newton_minus_cauchy = ctx.newton_step.array() - ctx.cauchy_step.array();
   double l2               = ctx.newton_minus_cauchy.squaredNorm();
   double c                = ctx.newton_minus_cauchy.dot(ctx.cauchy_step);
   double discriminant     = c*c - l2* (norm2a - dsq);
@@ -468,7 +467,7 @@ void computeInterpolatedUpdate(Vector& update,
   }
   double k = (-c + sqrt(discriminant))/l2;
 
-  ctx.dogleg_step_short = ctx.cauchy_step + k*ctx.newton_minus_cauchy;
+  update = ctx.cauchy_step.array() + k*ctx.newton_minus_cauchy.array();
 }
 
 double computeExpectedImprovement(OperatingPoint& point, Context& ctx)
@@ -574,7 +573,7 @@ double takeStep(OperatingPoint& from, Vector& x_new,
       // full Gauss-Newton step lies outside my trust region, so I interpolate
       // between the Cauchy-point step and the Gauss-Newton step to find a step
       // that takes me to the edge of my trust region.
-      computeInterpolatedUpdate(ctx.dogleg_step_short, from, ctx);
+      computeInterpolatedUpdate(ctx.dogleg_step_short, ctx);
       ctx.dogleg_step = &ctx.dogleg_step_short;
 
       step_norm = ctx.trustregion;
