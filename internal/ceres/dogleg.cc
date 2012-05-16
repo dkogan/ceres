@@ -133,7 +133,7 @@ struct Context
   double total_cost, actual_cost_change, step_norm;
 
 
-  Context(int num_parameters, int num_effective_parameters, int num_residuals,
+  Context(int num_effective_parameters, int num_residuals,
           Evaluator* _evaluator,
           LinearSolver* _linear_solver, IterationSummary& _iteration_summary,
           vector<int>& _iterations_to_dump, const Minimizer::Options& _options)
@@ -142,7 +142,7 @@ struct Context
       iterations_to_dump(_iterations_to_dump),
       scale(num_effective_parameters),
       J_Jt_f(num_residuals),
-      D(num_parameters), muD(num_parameters),
+      D(num_effective_parameters), muD(num_effective_parameters),
       cauchy_step(num_effective_parameters), newton_step(num_effective_parameters),
       newton_minus_cauchy(num_effective_parameters), Jstep(num_residuals),
       dogleg_step_short(num_effective_parameters),
@@ -661,7 +661,7 @@ void Dogleg::Minimize(const Minimizer::Options& options,
 
   IterationSummary iteration_summary;
   vector<int>      iterations_to_dump = options.lsqp_iterations_to_dump;
-  Context ctx(num_parameters, num_effective_parameters, num_residuals,
+  Context ctx(num_effective_parameters, num_residuals,
 
               evaluator, linear_solver,
               iteration_summary, iterations_to_dump, options);
