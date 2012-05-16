@@ -132,22 +132,20 @@ struct Context
 
   double total_cost, actual_cost_change, step_norm;
 
-  int num_effective_parameters;
 
-  Context(int num_parameters, int _num_effective_parameters, int num_residuals,
+  Context(int num_parameters, int num_effective_parameters, int num_residuals,
           Evaluator* _evaluator,
           LinearSolver* _linear_solver, IterationSummary& _iteration_summary,
           vector<int>& _iterations_to_dump, const Minimizer::Options& _options)
     : options(_options), evaluator(_evaluator), linear_solver(_linear_solver),
       iteration_summary(_iteration_summary),
       iterations_to_dump(_iterations_to_dump),
-      num_effective_parameters(_num_effective_parameters),
-      scale(_num_effective_parameters),
+      scale(num_effective_parameters),
       J_Jt_f(num_residuals),
       D(num_parameters), muD(num_parameters),
-      cauchy_step(_num_effective_parameters), newton_step(_num_effective_parameters),
-      newton_minus_cauchy(_num_effective_parameters), Jstep(num_residuals),
-      dogleg_step_short(_num_effective_parameters),
+      cauchy_step(num_effective_parameters), newton_step(num_effective_parameters),
+      newton_minus_cauchy(num_effective_parameters), Jstep(num_residuals),
+      dogleg_step_short(num_effective_parameters),
       trustregion(kInitialTrustregion), mu(0.0), have_scale(false)
   { }
 
@@ -363,7 +361,7 @@ bool computeGaussNewtonUpdate(OperatingPoint& point,
     // the linear solver generated numerical garbage.  This is known
     // to happen for the DENSE_QR and then DENSE_SCHUR solver when
     // the Jacobin is severly rank deficient and mu is too small.
-    InvalidateArray(ctx.num_effective_parameters, ctx.newton_step.data());
+    InvalidateArray(ctx.evaluator->NumEffectiveParameters(), ctx.newton_step.data());
 
     const time_t linear_solver_start_time = time(NULL);
     LinearSolver::Summary linear_solver_summary =
@@ -397,7 +395,7 @@ bool computeGaussNewtonUpdate(OperatingPoint& point,
     if ((linear_solver_summary.termination_type == TOLERANCE) ||
         (linear_solver_summary.termination_type == MAX_ITERATIONS))
     {
-      if (!IsArrayValid(ctx.num_effective_parameters, ctx.newton_step.data())) {
+      if (!IsArrayValid(ctx.evaluator->NumEffectiveParameters(), ctx.newton_step.data())) {
         LOG(WARNING) << "Linear solver failure. Failed to compute a finite "
                      << "step. Terminating. Please report this to the Ceres "
                      << "Solver developers.";
