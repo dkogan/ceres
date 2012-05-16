@@ -119,7 +119,7 @@ struct Context
 
   Vector newton_minus_cauchy; // serves as pre-allocated memory
   Vector Jstep;               // serves as pre-allocated memory
-#define Jt_f_scaled newton_minus_cauchy /* shared pre-allocated memory */
+#define x_unscaled newton_minus_cauchy /* overlapping pre-allocated memory */
 
   // whether the current update vectors are correct or not
   bool cauchy_step_valid, newton_step_valid;
@@ -184,10 +184,20 @@ struct OperatingPoint
 
   bool computeOperatingPoint(Context& ctx)
   {
-    x_norm = x.norm();
-
     f.setZero(); // is this necessary?
-    if (!ctx.evaluator->Evaluate(x.data(), &cost, f.data(), J.get())) {
+
+    Vector* x_here;
+    if( ctx.options.jacobi_scaling && ctx.have_scale )
+    {
+      // x I have is already scaled. Compute the unscaled version
+      ctx.x_unscaled = x.array() * ctx.scale.array();
+      x_here         = &ctx.x_unscaled;
+    }
+    else
+      // The x I have is not scaled, so just use it directly
+      x_here = &x;
+
+    if (!ctx.evaluator->Evaluate(x_here->data(), &cost, f.data(), J.get())) {
       LOG(WARNING) << "Failed to compute residuals and Jacobian. "
                    << "Terminating.";
       return false;
@@ -196,22 +206,35 @@ struct OperatingPoint
     model_cost = f.squaredNorm() / 2.0;
 
     // estimate the Jacobian scale the first time
-    if( !ctx.have_scale ) {
-      ctx.have_scale = true;
-#warning mode
-      if (0 && ctx.options.jacobi_scaling) {
-        EstimateScale(ctx.scale.data());
-        J->ScaleColumns(ctx.scale.data());
-      } else {
-        ctx.scale.setOnes();
+    if( ctx.options.jacobi_scaling ) {
+
+      /////////////// scaling ///////////////////////
+      // The Dogleg method uses a sphere in state space for its trust region,
+      // which implies even scaling for ALL the state variables. I thus compute
+      // a vector of scale factors s, and run the dogleg solver as if the state
+      // variables were thusly scaled. s has the same units as x, so x_scaled =
+      // x/s is unitless. Let Ws = diag(s), and let all vectors be COLUMN
+      // vectors
+      // f = f(x) = f(x_scaled * s). J_scaled = df/dx_scaled = J Ws
+      //
+      // Everything the algorithm touches will be done in the scaled-variable
+      // space. Only at the end, when the result is returned, will I unscale the
+      // results back
+      if( !ctx.have_scale )
+      {
+        ctx.have_scale = true;
+
+        EstimateScale  (ctx.scale.data());
+        x = x.array() / ctx.scale.array();
       }
+      J->ScaleColumns(ctx.scale.data());
     }
 
-    // compute Jt*f
-    ctx.Jt_f_scaled.setZero();
-    J->LeftMultiply(f.data(), ctx.Jt_f_scaled.data());
-    Jt_f = ctx.Jt_f_scaled.array() / ctx.scale.array();
+    x_norm = x.norm();
 
+    // compute Jt*f
+    Jt_f.setZero();
+    J->LeftMultiply(f.data(), Jt_f.data());
     gradient_max_norm = Jt_f.lpNorm<Eigen::Infinity>();
 
     return true;
@@ -293,12 +316,6 @@ void computeCauchyUpdate(OperatingPoint& point, Context& ctx)
   // k*Jt*f where k = -norm2(Jt*f)/norm2(J*Jt*f)
   double norm2_Jt_f = point.Jt_f.squaredNorm();
 
-  // #warning undone
-  // unscaled_gradient   = point.Jt_f.array() / ctx.scale.array();
-  // ctx.J_Jt_f.setZero();
-  // point.J->RightMultiply(unscaled_gradient.data(), ctx.J_Jt_f.data());
-
-
   ctx.J_Jt_f.setZero();
   point.J->RightMultiply(point.Jt_f.data(), ctx.J_Jt_f.data());
   double norm2_J_Jt_f = ctx.J_Jt_f.squaredNorm();
@@ -309,7 +326,6 @@ void computeCauchyUpdate(OperatingPoint& point, Context& ctx)
 
   ctx.cauchy_step_norm = sqrt(ctx.cauchy_step_norm2);
 
-  #warning is the scaling applied here correct?
   VLOG(2) << "cauchy step size " << ctx.cauchy_step_norm;
 }
 
@@ -414,11 +430,9 @@ bool computeGaussNewtonUpdate(OperatingPoint& point,
   ctx.newton_step_norm2 = ctx.newton_step.squaredNorm();
   ctx.newton_step_norm  = sqrt( ctx.newton_step_norm2 );
 
+  ctx.newton_step = -ctx.newton_step;
 
-  //#warning need scales here
-
-  //#warning does this do anything?
-  ctx.newton_step.array() *= -1.0;
+  VLOG(2) << "gauss-newton step size " << ctx.newton_step_norm;
   return true;
 }
 
@@ -605,6 +619,14 @@ double takeStep(OperatingPoint& from, Vector& x_new,
   return computeExpectedImprovement(from, ctx);
 }
 
+void storeSolution(double* x_out, int N, OperatingPoint& point, Context& ctx)
+{
+  // x I have is scaled. Compute the unscaled version
+  if( ctx.options.jacobi_scaling && ctx.have_scale )
+    point.x = point.x.array() * ctx.scale.array();
+
+  memcpy(x_out, point.x.data(), N * sizeof(*x_out) );
+}
 }  // namespace
 
 Dogleg::~Dogleg() {}
@@ -708,16 +730,14 @@ void Dogleg::Minimize(const Minimizer::Options& options,
   {
     summary->termination_type = GRADIENT_TOLERANCE;
 
-    memcpy(final_parameters, before_step->x.data(),
-           num_parameters * sizeof(*final_parameters) );
+    storeSolution(final_parameters, num_parameters, *before_step, ctx);
     return;
   }
 
   // Call the various callbacks.
   for (int i = 0; i < options.callbacks.size(); ++i) {
     if (!RunCallback(options.callbacks[i], iteration_summary, summary)) {
-      memcpy(final_parameters, before_step->x.data(),
-             num_parameters * sizeof(*final_parameters) );
+      storeSolution(final_parameters, num_parameters, *before_step, ctx);
       return;
     }
   }
@@ -751,8 +771,7 @@ void Dogleg::Minimize(const Minimizer::Options& options,
       if( checkGradientZero(*after_step, ctx) )
       {
         summary->termination_type = GRADIENT_TOLERANCE;
-        memcpy(final_parameters, after_step->x.data(),
-               num_parameters * sizeof(*final_parameters) );
+        storeSolution(final_parameters, num_parameters, *after_step, ctx);
         return;
       }
 
@@ -770,8 +789,7 @@ void Dogleg::Minimize(const Minimizer::Options& options,
                 << " Relative cost change: " << fabs(ctx.actual_cost_change) / after_step->cost
                 << " tolerance: " << options.function_tolerance;
         summary->termination_type = FUNCTION_TOLERANCE;
-        memcpy(final_parameters, after_step->x.data(),
-               num_parameters * sizeof(*final_parameters) );
+        storeSolution(final_parameters, num_parameters, *after_step, ctx);
         return;
       }
 
@@ -797,8 +815,7 @@ void Dogleg::Minimize(const Minimizer::Options& options,
         summary->termination_type = TRUSTREGION_TOLERANCE;
         VLOG(2) << "trust region small enough. Giving up. Done iterating!";
 
-        memcpy(final_parameters, after_step->x.data(),
-               num_parameters * sizeof(*final_parameters) );
+        storeSolution(final_parameters, num_parameters, *after_step, ctx);
         return;
       }
 
@@ -830,8 +847,7 @@ void Dogleg::Minimize(const Minimizer::Options& options,
     // Call the various callbacks.
     for (int i = 0; i < options.callbacks.size(); ++i) {
       if (!RunCallback(options.callbacks[i], iteration_summary, summary)) {
-        memcpy(final_parameters, after_step->x.data(),
-               num_parameters * sizeof(*final_parameters) );
+        storeSolution(final_parameters, num_parameters, *before_step, ctx);
         return;
       }
     }
