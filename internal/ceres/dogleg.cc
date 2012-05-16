@@ -81,7 +81,7 @@ const double kMuFactor = 10.0;
 // it is cheap to reject a too-large trust region, so I start with something
 // "large". The solver will quickly move down to something reasonable. Only the
 // user really knows if this is "large" or not, so this should be adjustable
-const double kInitialTrustregion = 1.0e3;
+const double kInitialTrustregion = 1.0e6;
 
 // These are probably OK to leave alone. Tweaking them can maybe result in
 // slightly faster convergence
