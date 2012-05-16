@@ -849,6 +849,8 @@ void Dogleg::Minimize(const Minimizer::Options& options,
       }
     }
   }
+
+  storeSolution(final_parameters, num_parameters, *before_step, ctx);
 }
 
 }  // namespace internal
