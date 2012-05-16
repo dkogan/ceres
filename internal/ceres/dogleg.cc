@@ -561,13 +561,6 @@ double takeStep(OperatingPoint& from, Vector& x_new,
     }
   }
 
-  //#warning test code
-  if(ctx.stepped_to_edge)
-  {
-    fprintf(stderr, "checking... step len should: %g, step len did: %g\n",
-            ctx.trustregion, ctx.dogleg_step->norm());
-  }
-
   // Check step length based convergence. If the step length is
   // too small, then we are done.
   const double step_size_tolerance = ctx.options.parameter_tolerance *
