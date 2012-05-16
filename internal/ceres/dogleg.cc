@@ -487,9 +487,23 @@ bool evaluateStep_adjustTrustRegion(const OperatingPoint& before,
           << ". rho = " << rho;
 
   if(rho < kTrustregionDecreaseThreshold)
+  {
+    VLOG(2) << "rho too small. decreasing trust region";
+
+    // Our model doesn't fit well. We should reduce the trust region size. If
+    // the trust region size was affecting the attempted step, do this by a
+    // constant factor. Otherwise, drop the trustregion to attempted step size
+    // first
+    if( !ctx.stepped_to_edge )
+      ctx.trustregion = ctx.newton_step_norm;
+
     ctx.trustregion *= kTrustregionDecreaseFactor;
+  }
   else if (rho > kTrustregionIncreaseThreshold && ctx.stepped_to_edge)
+  {
+    VLOG(2) << "rho large enough. increasing trust region";
     ctx.trustregion *= kTrustregionIncreaseFactor;
+  }
 
   return rho > 0.0;
 }
