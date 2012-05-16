@@ -711,6 +711,8 @@ void Dogleg::Minimize(const Minimizer::Options& options,
   while ((ctx.iteration < options.max_num_iterations) &&
          (time(NULL) - start_time) <= options.max_solver_time_sec)
   {
+    VLOG(2) << ""; // to visibly break up the steps in the log
+
     time_t iteration_start_time = time(NULL);
 
     while(true)
