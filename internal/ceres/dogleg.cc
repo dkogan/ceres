@@ -86,7 +86,7 @@ const double kInitialTrustregion = 1.0e6;
 // These are probably OK to leave alone. Tweaking them can maybe result in
 // slightly faster convergence
 const double kTrustregionDecreaseFactor    = 0.1;
-const double kTrustregionIncreaseFactor    = 2.0;
+const double kTrustregionIncreaseFactor    = 5.0;
 const double kTrustregionIncreaseThreshold = 0.75;
 const double kTrustregionDecreaseThreshold = 0.25;
 
