@@ -500,7 +500,7 @@ bool evaluateStep_adjustTrustRegion(const OperatingPoint& before,
 double takeStep(OperatingPoint& from, Vector& x_new,
                 SolverTerminationType* result, Context& ctx)
 {
-  VLOG(2) << "taking step with trustregion " << ctx.trustregion;
+  VLOG(2) << "Trying a step with trustregion " << ctx.trustregion;
 
   double step_norm;
 
